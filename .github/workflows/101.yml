@@ -35,7 +35,7 @@ jobs:
       run: |
         echo "DEVICE=$(echo ${{ env.KERNEL_DEFCONFIG }} | sed 's!vendor/!!;s/_defconfig//;s/_user//;s/-perf//')" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install flex bison git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
+        sudo apt-get install dos2unix flex bison git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
         mkdir clang17
         cd clang17
         wget https://github.com/ZyCromerZ/Clang/releases/download/17.0.0-20230609-release/Clang-17.0.0-20230609.tar.gz
@@ -56,6 +56,8 @@ jobs:
       run: |
         cd android-kernel
         curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+        dos2unix drivers/mihw/Kconfig
+        dos2unix drivers/mihw/Makefile
         cd KernelSU
         echo "KSU_VERSION=$(($(git rev-list --count HEAD) + 10200))" >> $GITHUB_ENV
         
@@ -76,7 +78,7 @@ jobs:
     - name: Upload the kernel AK3 zip
       uses: actions/upload-artifact@v3
       with:
-        name: Xaga_${{ env.KSU_VERSION }}
+        name: AK3_${{ env.KSU_VERSION }}
         path: android-kernel/anykernel/*
     
     - name: Build IMG
