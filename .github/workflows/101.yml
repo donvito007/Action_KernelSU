@@ -1,0 +1,96 @@
+name: Build KSU Kernel
+
+on:
+  workflow_dispatch:
+
+    inputs:
+      KERNEL_SOURCE:
+        description: 'Kernel Source'
+        required: true
+        default: 'Rohail33/Realking_xiaomi_xaga'
+      KERNEL_SOURCE_BRANCH:
+        description: 'Branch'
+        required: true
+        default: 'stable'
+      KERNEL_DEFCONFIG:
+        description: 'Defconfig'
+        required: true
+        default: 'gki_defconfig'
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    - uses: actions/checkout@v3
+
+    - name: Setup Configuration
+      run: |
+        echo "KERNEL_SOURCE=${{ github.event.inputs.KERNEL_SOURCE }}" >> $GITHUB_ENV
+        echo "KERNEL_SOURCE_BRANCH=${{ github.event.inputs.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
+        echo "KERNEL_DEFCONFIG=${{ github.event.inputs.KERNEL_DEFCONFIG }}" >> $GITHUB_ENV
+    
+    - name: Setup build kernel environment
+      run: |
+        echo "DEVICE=$(echo ${{ env.KERNEL_DEFCONFIG }} | sed 's!vendor/!!;s/_defconfig//;s/_user//;s/-perf//')" >> $GITHUB_ENV
+        sudo apt-get update
+        sudo apt-get install flex bison git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
+        mkdir clang17
+        cd clang17
+        wget https://github.com/ZyCromerZ/Clang/releases/download/17.0.0-20230609-release/Clang-17.0.0-20230609.tar.gz
+        tar -zvxf Clang-17.0.0-20230609.tar.gz
+        rm Clang-17.0.0-20230609.tar.gz
+    
+    
+    - name: Checkout Kernel Source
+      uses: actions/checkout@v3
+      with:
+        github-server-url: 'https://github.com'
+        repository: ${{ env.KERNEL_SOURCE }}
+        ref: ${{ env.KERNEL_SOURCE_BRANCH }}
+        submodules: recursive
+        path: android-kernel
+
+    - name: Setup KernelSU
+      run: |
+        cd android-kernel
+        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+        cd KernelSU
+        echo "KSU_VERSION=$(($(git rev-list --count HEAD) + 10200))" >> $GITHUB_ENV
+        
+    - name: Build kernel
+      run: |
+        export PATH="${{ github.workspace }}/clang17/bin:${PATH}"
+        export CLANG_TRIPLE=aarch64-linux-gnu-
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+        export ARCH=arm64
+        export SUBARCH=arm64
+        export LD=ld.lld
+        cd android-kernel
+        make CC=clang CXX=clang++ LLVM=1 LLVM_IAS=1 O=out CONFIG_MEDIATEK_CPUFREQ_DEBUG=m CONFIG_MTK_IPI=m CONFIG_MTK_TINYSYS_MCUPM_SUPPORT=m CONFIG_MTK_MBOX=m CONFIG_RPMSG_MTK=m CONFIG_LTO_CLANG=y CONFIG_LTO_NONE=n CONFIG_LTO_CLANG_THIN=y CONFIG_LTO_CLANG_FULL=n ${{ env.KERNEL_DEFCONFIG }}
+        make CC=clang CXX=clang++ LLVM=1 LLVM_IAS=1 O=out CONFIG_MEDIATEK_CPUFREQ_DEBUG=m CONFIG_MTK_IPI=m CONFIG_MTK_TINYSYS_MCUPM_SUPPORT=m CONFIG_MTK_MBOX=m CONFIG_RPMSG_MTK=m CONFIG_LTO_CLANG=y CONFIG_LTO_NONE=n CONFIG_LTO_CLANG_THIN=y CONFIG_LTO_CLANG_FULL=n
+        cp out/arch/arm64/boot/Image.gz anykernel
+    
+    - name: Upload the kernel AK3 zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: Xaga_${{ env.KSU_VERSION }}
+        path: android-kernel/anykernel/*
+    
+    - name: Build IMG
+      run: |
+        unzip ${{ github.workspace }}/boot-source.zip
+        mkdir boot
+        cd boot
+        chmod +x ${{ github.workspace }}/magiskboot
+        ${{ github.workspace }}/magiskboot unpack -n ${{ github.workspace }}/boot-source.img
+        cp $GITHUB_WORKSPACE/android-kernel/out/arch/arm64/boot/Image.gz kernel
+        ${{ github.workspace }}/magiskboot repack -n ${{ github.workspace }}/boot-source.img boot.img
+    
+    - name: Upload the boot.img
+      uses: actions/upload-artifact@v3
+      with:
+        name: IMG_${{ env.KSU_VERSION }}
+        path: ${{ github.workspace }}/boot/boot.img
