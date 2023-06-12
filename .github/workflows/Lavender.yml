@@ -1,4 +1,4 @@
-name: Build VoltageOS lavender Kernel
+name: Build Lavender Kernel
 
 on:
   workflow_dispatch:
@@ -7,11 +7,11 @@ on:
       KERNEL_SOURCE:
         description: 'Kernel Source'
         required: true
-        default: 'VoltageOS-Devices/kernel_xiaomi_lavender'
+        default: 'Peppe289/kernel_xiaomi_lavender'
       KERNEL_SOURCE_BRANCH:
         description: 'Branch'
         required: true
-        default: '13-4.4-ksu'
+        default: 'kernelsu'
       KERNEL_DEFCONFIG:
         description: 'Defconfig'
         required: true
@@ -56,8 +56,8 @@ jobs:
       run: |
         cd android-kernel
         git clone --depth=1 https://github.com/Peppe289/AnyKernel3.git -b lavender anykernel
-        rm -rf KernelSU
-        git clone https://github.com/tiann/KernelSU.git
+        rm -rf drivers/kernelsu
+        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
         cd KernelSU
         echo "KSU_VERSION=$(($(git rev-list --count HEAD) + 10200))" >> $GITHUB_ENV
         
